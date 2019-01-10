@@ -21,9 +21,9 @@
 use crate::protocol::{FloodsubCodec, FloodsubConfig, FloodsubRpc};
 use futures::prelude::*;
 use libp2p_core::{
-    ProtocolsHandler, ProtocolsHandlerEvent,
     protocols_handler::ProtocolsHandlerUpgrErr,
-    upgrade::{InboundUpgrade, OutboundUpgrade}
+    upgrade::{InboundUpgrade, OutboundUpgrade},
+    ProtocolsHandler, ProtocolsHandlerEvent,
 };
 use smallvec::SmallVec;
 use std::{fmt, io};
@@ -118,10 +118,10 @@ where
 
     fn inject_fully_negotiated_inbound(
         &mut self,
-        protocol: <Self::InboundProtocol as InboundUpgrade<TSubstream>>::Output
+        protocol: <Self::InboundProtocol as InboundUpgrade<TSubstream>>::Output,
     ) {
         if self.shutting_down {
-            return ()
+            return ();
         }
         self.substreams.push(SubstreamState::WaitingInput(protocol))
     }
@@ -129,12 +129,13 @@ where
     fn inject_fully_negotiated_outbound(
         &mut self,
         protocol: <Self::OutboundProtocol as OutboundUpgrade<TSubstream>>::Output,
-        message: Self::OutboundOpenInfo
+        message: Self::OutboundOpenInfo,
     ) {
         if self.shutting_down {
-            return ()
+            return ();
         }
-        self.substreams.push(SubstreamState::PendingSend(protocol, message))
+        self.substreams
+            .push(SubstreamState::PendingSend(protocol, message))
     }
 
     #[inline]
@@ -146,11 +147,19 @@ where
     fn inject_inbound_closed(&mut self) {}
 
     #[inline]
-    fn inject_dial_upgrade_error(&mut self, _: Self::OutboundOpenInfo, _: ProtocolsHandlerUpgrErr<<Self::OutboundProtocol as OutboundUpgrade<Self::Substream>>::Error>) {}
+    fn inject_dial_upgrade_error(
+        &mut self,
+        _: Self::OutboundOpenInfo,
+        _: ProtocolsHandlerUpgrErr<
+            <Self::OutboundProtocol as OutboundUpgrade<Self::Substream>>::Error,
+        >,
+    ) {
+    }
 
     #[inline]
     fn connection_keep_alive(&self) -> bool {
-        !self.substreams.is_empty()
+        // !self.substreams.is_empty()
+        true
     }
 
     #[inline]
@@ -158,7 +167,8 @@ where
         self.shutting_down = true;
         for n in (0..self.substreams.len()).rev() {
             let mut substream = self.substreams.swap_remove(n);
-            self.substreams.push(SubstreamState::Closing(substream.into_substream()));
+            self.substreams
+                .push(SubstreamState::Closing(substream.into_substream()));
         }
     }
 
